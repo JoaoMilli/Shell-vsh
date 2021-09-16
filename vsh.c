@@ -29,7 +29,7 @@ Output: Nada
 
 */
 
-void execute(char **argv, int background, int* prim, pid_t *grupo);
+void execute(char **argv, int background, int* prim, pid_t *grupo, pid_t *processos, int* nProcessos);
 
 /*  
 
@@ -55,13 +55,15 @@ Output: Nada
 
 void handleSIGUSR(int sig);
 
-void main(void) {
+int main(void) {
 
     char linha[1024];             // String contendo o comando completo enviado pelo shell
     char *argv[64];               // String contendo os argumentos a serem executados no formato que é recebido pelo exec
     char comandos[5][200];         // Vetor de strings contendo todos os comandos completos enviados pelo shell
     int prim;                      // Booleano que representa se um comando é o primeiro de uma sessão
     pid_t grupo;                   // Valor do group id da sessão
+    pid_t* processos = malloc(sizeof(pid_t)*100);
+    int nProcessos = 0;
 
     /*Instala tratadores específicos para os sinais SIGCHLD, SIGUSR1, SIGUSR2*/
 
@@ -139,8 +141,24 @@ void main(void) {
         /*O group id dos processos da sessão é setado como o pid do primeiro comando da sessão*/
 
         if(nComandos == 1){
-            parse(comandos[0], argv);
-            execute(argv,0, &prim, &grupo);
+            if (!strcmp(comandos[0], "liberamoita\n")){
+                pid_t wpid;
+                while((wpid = waitpid(-1,NULL,WNOHANG)) > 0);
+                printf("\nProcessos zumbis liberados\n");
+            }
+            else if (!strcmp(comandos[0], "armageddon\n")) {
+                printf("\nTerminando todos os processos e encerrando terminal\n");
+                for (int i=0; i<nProcessos; i++){
+                    kill(processos[i], SIGINT);
+                }
+                free(processos);
+                return 0;
+                
+            }
+            else{
+                parse(comandos[0], argv);
+                execute(argv,0, &prim, &grupo, processos, &nProcessos);
+            }
         }
         /*Se houver mais de um comando no input, é feito o parsing de cada comando preenchendo o vetor argv de acordo com o padrão recebido pelo exec, e cada comando é executado em background*/
         /*O group id dos processos da sessão é setado como o pid do primeiro comando da sessão*/
@@ -148,7 +166,7 @@ void main(void) {
         else{
             for(int k=0; k<nComandos; k++){
                 parse(comandos[k], argv);
-                execute(argv,1, &prim, &grupo);
+                execute(argv,1, &prim, &grupo, processos, &nProcessos);
             }
         }
 
@@ -187,7 +205,7 @@ void parse (char *linha, char **argv) {
     *argv = '\0';                 
 }
 
-void execute(char **argv, int background, int* prim, pid_t *grupo) {
+void execute(char **argv, int background, int* prim, pid_t *grupo, pid_t *processos, int* nProcessos) {
 
     pid_t pid;
     int status;
@@ -221,6 +239,8 @@ void execute(char **argv, int background, int* prim, pid_t *grupo) {
     /*Código do processo pai*/
 
     else if (pid > 0) {
+        processos[*nProcessos] = pid;
+        (*nProcessos)++;
 
         /* Se for o primeiro comando da sessão, seta o seu group id como sendo o próprio pid, o pid desse processo será o group id da sessão*/
 
@@ -271,5 +291,12 @@ void handleSIGCHLD(int sig){
 /*Implementação do tratador do sinal SIGUSR do shell*/
 
 void handleSIGUSR(int sig){
+    sigset_t sinais;
+    sigemptyset(&sinais);
+    sigaddset(&sinais, SIGINT);
+    sigaddset(&sinais, SIGQUIT);
+    sigaddset(&sinais, SIGTSTP);
+    sigprocmask(SIG_BLOCK, &sinais, NULL);
     printf("Printar o dinossauro");
+    sigprocmask(SIG_UNBLOCK, &sinais, NULL);
 }
