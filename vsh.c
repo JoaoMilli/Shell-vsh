@@ -141,20 +141,34 @@ int main(void) {
         /*O group id dos processos da sessão é setado como o pid do primeiro comando da sessão*/
 
         if(nComandos == 1){
+
+            /*Comando liberamoita (comando interno)*/
+
             if (!strcmp(comandos[0], "liberamoita\n")){
                 pid_t wpid;
+
+                /*invoca waitpid ate que nao exista mais processos terminados, isso recolhe os status dos processos filhos acabados e terminam seu estado zombie*/
                 while((wpid = waitpid(-1,NULL,WNOHANG)) > 0);
                 printf("\nProcessos zumbis liberados\n");
             }
+
+            /*Comando armageddon (comando interno)*/
+
             else if (!strcmp(comandos[0], "armageddon\n")) {
                 printf("\nTerminando todos os processos e encerrando terminal\n");
+
+                /*Envia o sinal SIGINT para todos os processos criados pelo shell, causando sua terminacao*/
                 for (int i=0; i<nProcessos; i++){
                     kill(processos[i], SIGINT);
                 }
+
                 free(processos);
                 return 0;
                 
             }
+
+            /*Comando externo*/
+
             else{
                 parse(comandos[0], argv);
                 execute(argv,0, &prim, &grupo, processos, &nProcessos);
@@ -291,12 +305,32 @@ void handleSIGCHLD(int sig){
 /*Implementação do tratador do sinal SIGUSR do shell*/
 
 void handleSIGUSR(int sig){
+
+    //Cria uma mascara de sinais e inicia
     sigset_t sinais;
     sigemptyset(&sinais);
+
+    /*Adiciona os sinais de interrupcao nessa mascara*/
     sigaddset(&sinais, SIGINT);
     sigaddset(&sinais, SIGQUIT);
     sigaddset(&sinais, SIGTSTP);
+
+    /*Bloqueia todos os sinais adicionados na mascara*/
     sigprocmask(SIG_BLOCK, &sinais, NULL);
-    printf("Printar o dinossauro");
+
+    /*Trata o sinal, imprimindo ascii*/
+
+    printf("\n\n");
+    printf("            _  _\n");
+    printf("  _ _      (0)(0)-._  _.-'^^'^^'^^'^^'^^'--.\n");
+    printf(" (.(.)----'`        ^^'                /^   ^^-._\n");
+    printf(" (    `                 \\             |    _    ^^-._\n");
+    printf("  VvvvvvvVv~~`__,/.._>  /:/:/:/:/:/:/:/\\  (_..,______^^-.\n");
+    printf("   `^^^^^^^^`/  /   /  /`^^^^^^^^^>^^>^`>  >        _`)  )\n");
+    printf("            (((`   (((`          (((`  (((`        `'--'^\n");
+    printf("I feel weird...\n");
+
+    /*Desbloqueia os sinais bloqueados pela mascara*/
+
     sigprocmask(SIG_UNBLOCK, &sinais, NULL);
 }
